@@ -21,7 +21,7 @@
 Use `go get` to install GoAPIpretender:
 
 ```sh
-go get github.com/yourusername/GoAPIpretender
+go get github.com/csrar/GoAPIpretender
 ```
 
 ---
@@ -38,7 +38,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/yourusername/GoAPIpretender"
+	"github.com/csrar/GoAPIpretender"
 )
 
 func TestAPI(t *testing.T) {
@@ -77,7 +77,7 @@ func TestAPI(t *testing.T) {
 | **Missing query parameters** | ❌ Test **fails** | ⚠️ Logs error, returns **configured response** |
 | **Payload does not match expected** | ❌ Test **fails** | ⚠️ Logs error, returns **configured response** |
 
-### 📢 Important: If `T` is not set, validation errors will NOT fail the test but will be logged.
+### Important: If `T` is not set, validation errors will NOT fail the test but will be logged.
 
  If you want strict test failures, **ensure `T` is set** in `ServerMockConfig`.
 If `T` is not set, the test **will not fail**, but errors will be logged.
@@ -86,7 +86,7 @@ If `T` is not set, the test **will not fail**, but errors will be logged.
 
 ##  Configuring Mock API Behavior
 
-### 2️⃣ Customizing Expected Requests
+### 2- Customizing Expected Requests
 
 ```go
 mock := GoAPIpretender.NewConfiguredMockServer(GoAPIpretender.ServerMockConfig{
@@ -101,7 +101,7 @@ mock := GoAPIpretender.NewConfiguredMockServer(GoAPIpretender.ServerMockConfig{
 
 This ensures **only** GET requests with **valid headers, parameters, and payloads** are accepted.
 
-### 3️⃣ Customizing Responses
+### 3- Customizing Responses
 
 ```go
 	mock.SetResponseStatus(http.StatusOK).
@@ -124,7 +124,7 @@ mock := GoAPIpretender.NewDefaultMockServer().
 	SetResponseBody([]byte(`{"message": "unvalidated response"}`))
 ```
 
-✅ This allows the mock server to always return the specified response, regardless of the request details.
+This allows the mock server to always return the specified response, regardless of the request details.
 
 ## Mock API Lifecycle
 
@@ -177,15 +177,11 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## Contributing
-
-- Found an issue? **Open a GitHub issue**
-- Want to contribute? **Submit a PR**
 
 ---
 
-### 💬 Need Help?
-🌎 **GitHub:** [GoAPIpretender Repo](https://github.com/yourusername/GoAPIpretender)
+### Need Help?
+**GitHub:** [GoAPIpretender Repo](https://github.com/csrar/GoAPIpretender)
 
-🚀 **Happy Testing!** 🚀
+**Happy Testing!** 
 
