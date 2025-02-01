@@ -117,6 +117,20 @@ func TestServerMock_QueryParameterValidation(t *testing.T) {
 
 func TestServerMock_PayloadValidation(t *testing.T) {
 	tc := &TestCapture{}
+	expectedErrors := []string{"GoAPIpretender: Mismatched JSON payload, got: '{\"key\":\"wrong-value\"}', expected: '{\"key\":\"value\"}'"}
+	expectedPayload := []byte(`{"key":"value"}`)
+	mock := NewDefaultMockServer().SetPayload(expectedPayload).SetMethod("POST").SetT(tc)
+	defer mock.Stop()
+	url := mock.Start()
+
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte(`{"key":"wrong-value"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	http.DefaultClient.Do(req)
+
+	tc.checkErrors(expectedErrors, t)
+}
+func TestServerMock_MissmatchingPayloadValidation(t *testing.T) {
+	tc := &TestCapture{}
 	expectedErrors := []string{"GoAPIpretender: Unexpected payload received, got: '{\"key\":\"wrong-value\"}', expected: '{\"key\":\"value\"}'"}
 	expectedPayload := []byte(`{"key":"value"}`)
 	mock := NewDefaultMockServer().SetPayload(expectedPayload).SetMethod("POST").SetT(tc)
@@ -124,6 +138,33 @@ func TestServerMock_PayloadValidation(t *testing.T) {
 	url := mock.Start()
 
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte(`{"key":"wrong-value"}`)))
+	http.DefaultClient.Do(req)
+
+	tc.checkErrors(expectedErrors, t)
+}
+func TestServerMock_InvalidJSONexpected(t *testing.T) {
+	tc := &TestCapture{}
+	expectedErrors := []string{"GoAPIpretender: Invalid expected JSON: '{\"key:\"value}'"}
+	expectedPayload := []byte(`{"key:"value}`)
+	mock := NewDefaultMockServer().SetPayload(expectedPayload).SetMethod("POST").SetT(tc)
+	defer mock.Stop()
+	url := mock.Start()
+
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte(`{"key":"wrong-value"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	http.DefaultClient.Do(req)
+
+	tc.checkErrors(expectedErrors, t)
+}
+func TestServerMock_InvalidJSONpayload(t *testing.T) {
+	tc := &TestCapture{}
+	expectedErrors := []string{"GoAPIpretender: Invalid received JSON: '{\"key:\"wrong-value}'"}
+	expectedPayload := []byte(`{"key":"value"}`)
+	mock := NewDefaultMockServer().SetPayload(expectedPayload).SetMethod("POST").SetT(tc)
+	defer mock.Stop()
+	url := mock.Start()
+
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer([]byte(`{"key:"wrong-value}`)))
 	req.Header.Set("Content-Type", "application/json")
 	http.DefaultClient.Do(req)
 
@@ -157,31 +198,30 @@ func TestServerMock_MissingPayload(t *testing.T) {
 	tc.checkErrors(expectedErrors, t)
 }
 func TestServerMock_LogErrors(t *testing.T) {
-	tc := &TestCapture{}
-	expectedErrors := []string{"GoAPIpretender: Expected a request payload, but none was received"}
-
-	mock := NewConfiguredMockServer(ServerMockConfig{}).SetPayload([]byte("expected-payload"))
+	mock := NewConfiguredMockServer(ServerMockConfig{}).SetPayload([]byte("expected-payload")).SetMethod("GET")
 	defer mock.Stop()
 	url := mock.Start()
 
 	req, _ := http.NewRequest("POST", url, nil)
 	http.DefaultClient.Do(req)
 
-	tc.checkErrors(expectedErrors, t)
 }
 
 func TestServerMock_ResponseStatusAndBody(t *testing.T) {
-	expectedBody := []byte(`{"message":"success"}`)
+	expectedBody := []byte(`{"object":{"key":"value"},"array":[1,"text",false,null],"string":"hello","number":42,"boolean":true,"null":null}`)
 	expectedHeaders := map[string]string{"Custom-Header": "success"}
 	mock := NewConfiguredMockServer(ServerMockConfig{
 		ResponseStatus: http.StatusCreated,
 		ResponseBody:   expectedBody,
 		ResponseHeader: expectedHeaders,
+		Payload:        expectedBody,
+		T:              t,
 	})
 	defer mock.Stop()
 	url := mock.Start()
 
-	req, _ := http.NewRequest("GET", url, nil)
+	req, _ := http.NewRequest("POST", url, strings.NewReader(string(expectedBody)))
+	req.Header.Set("Content-Type", "application/json")
 	resp, _ := http.DefaultClient.Do(req)
 
 	if resp.StatusCode != http.StatusCreated {
@@ -191,8 +231,6 @@ func TestServerMock_ResponseStatusAndBody(t *testing.T) {
 	body := make([]byte, len(expectedBody))
 	resp.Body.Read(body)
 	resp.Body.Close()
-	fmt.Println("--body--")
-	fmt.Println(string(body))
 	if string(body) != string(expectedBody) {
 		t.Errorf("Expected response body %s, got %s", expectedBody, body)
 	}

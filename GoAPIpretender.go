@@ -1,12 +1,14 @@
 package GoAPIpretender
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 )
 
@@ -80,10 +82,37 @@ func (s *ServerMock) checkPayload(r *http.Request) error {
 	if len(s.config.Payload) > 0 && len(payload) == 0 {
 		return fmt.Errorf("Expected a request payload, but none was received")
 	}
-	if string(payload) != string(s.config.Payload) {
-		return fmt.Errorf("Unexpected payload received, got: '%s', expected: '%s'", string(payload), string(s.config.Payload))
+	return s.comparePayloads(r, payload)
+}
+
+func (s *ServerMock) comparePayloads(r *http.Request, payload []byte) error {
+	var expectedPayload any
+	var actualPayload any
+	if !s.isJSONrequest(r) {
+		if string(payload) != string(s.config.Payload) {
+			return fmt.Errorf("Unexpected payload received, got: '%s', expected: '%s'", string(payload), string(s.config.Payload))
+		}
+		return nil
+	}
+
+	if err := json.Unmarshal(s.config.Payload, &expectedPayload); err != nil {
+		return fmt.Errorf("Invalid expected JSON: '%s'", string(s.config.Payload))
+	}
+
+	if err := json.Unmarshal(payload, &actualPayload); err != nil {
+		return fmt.Errorf("Invalid received JSON: '%s'", string(payload))
+	}
+
+	if !reflect.DeepEqual(expectedPayload, actualPayload) {
+		return fmt.Errorf("Mismatched JSON payload, got: '%s', expected: '%s'", string(payload), string(s.config.Payload))
 	}
 	return nil
+}
+
+func (s *ServerMock) isJSONrequest(r *http.Request) bool {
+	contentType := r.Header.Get("Content-Type")
+	return strings.HasPrefix(contentType, "application/json")
+
 }
 
 func (s *ServerMock) newHandler() http.HandlerFunc {
