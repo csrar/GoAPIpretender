@@ -197,6 +197,30 @@ func TestServerMock_MissingPayload(t *testing.T) {
 
 	tc.checkErrors(expectedErrors, t)
 }
+
+func TestServerMock_CustomMock(t *testing.T) {
+	expectedBody := "mock-message"
+	expectedStatus := 201
+
+	mock := NewConfiguredMockServer(ServerMockConfig{}).SetCustomHandler(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(expectedStatus)
+		fmt.Fprintf(w, expectedBody)
+	})
+	defer mock.Stop()
+	url := mock.Start()
+
+	req, _ := http.NewRequest("POST", url, nil)
+	response, _ := http.DefaultClient.Do(req)
+	responseBody := make([]byte, len(expectedBody))
+	response.Body.Read(responseBody)
+	if expectedBody != string(responseBody) {
+		t.Errorf("received unnexpected response, got: '%s', expected: '%s'", string(responseBody), expectedBody)
+	}
+	if response.StatusCode != expectedStatus {
+		t.Errorf("received unnexpected status, got:'%d' expected:'%d", response.StatusCode, expectedStatus)
+	}
+}
+
 func TestServerMock_LogErrors(t *testing.T) {
 	mock := NewConfiguredMockServer(ServerMockConfig{}).SetPayload([]byte("expected-payload")).SetMethod("GET")
 	defer mock.Stop()
@@ -204,7 +228,6 @@ func TestServerMock_LogErrors(t *testing.T) {
 
 	req, _ := http.NewRequest("POST", url, nil)
 	http.DefaultClient.Do(req)
-
 }
 
 func TestServerMock_ResponseStatusAndBody(t *testing.T) {
