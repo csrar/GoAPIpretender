@@ -142,7 +142,32 @@ func TestServerMock_NotExpectedPayload(t *testing.T) {
 	http.DefaultClient.Do(req)
 
 	tc.checkErrors(expectedErrors, t)
+}
+func TestServerMock_MissingPayload(t *testing.T) {
+	tc := &TestCapture{}
+	expectedErrors := []string{"GoAPIpretender: Expected a request payload, but none was received"}
 
+	mock := NewConfiguredMockServer(ServerMockConfig{}).SetT(tc).SetPayload([]byte("expected-payload"))
+	defer mock.Stop()
+	url := mock.Start()
+
+	req, _ := http.NewRequest("POST", url, nil)
+	http.DefaultClient.Do(req)
+
+	tc.checkErrors(expectedErrors, t)
+}
+func TestServerMock_LogErrors(t *testing.T) {
+	tc := &TestCapture{}
+	expectedErrors := []string{"GoAPIpretender: Expected a request payload, but none was received"}
+
+	mock := NewConfiguredMockServer(ServerMockConfig{}).SetPayload([]byte("expected-payload"))
+	defer mock.Stop()
+	url := mock.Start()
+
+	req, _ := http.NewRequest("POST", url, nil)
+	http.DefaultClient.Do(req)
+
+	tc.checkErrors(expectedErrors, t)
 }
 
 func TestServerMock_ResponseStatusAndBody(t *testing.T) {
@@ -220,5 +245,18 @@ func TestServerMock_Stop(t *testing.T) {
 
 	if mock.server != nil {
 		t.Error("Expected server to be nil after Stop()")
+	}
+}
+
+func TestServerMock_Server(t *testing.T) {
+	mock := NewConfiguredMockServer(ServerMockConfig{})
+	httpServer := mock.Server()
+	if httpServer != nil {
+		t.Error("Expected http server to be nil before Start()")
+	}
+	mock.Start()
+	httpServer = mock.Server()
+	if httpServer == nil {
+		t.Error(" http server should not be nil after Start()")
 	}
 }
