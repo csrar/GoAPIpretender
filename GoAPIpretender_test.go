@@ -53,7 +53,7 @@ func TestServerMock_StartAndStop(t *testing.T) {
 
 func TestServerMock_MethodValidation(t *testing.T) {
 	tc := &TestCapture{}
-	expectedErrors := []string{"GoAPIpretender: invalid method, got: 'GET' expected: 'POST'"}
+	expectedErrors := []string{"invalid method, got: 'GET' expected: 'POST'"}
 	mock := NewConfiguredMockServer(ServerMockConfig{
 		Method: "POST",
 		T:      tc,
@@ -69,7 +69,7 @@ func TestServerMock_MethodValidation(t *testing.T) {
 
 func TestServerMock_PathValidation(t *testing.T) {
 	tc := &TestCapture{}
-	expectedErrors := []string{"GoAPIpretender: invalid path, got: '/wrong-path' expected: '/expected-path'"}
+	expectedErrors := []string{"invalid path, got: '/wrong-path' expected: '/expected-path'"}
 	mock := NewConfiguredMockServer(ServerMockConfig{
 		Path: "/expected-path",
 		T:    tc,
@@ -84,7 +84,7 @@ func TestServerMock_PathValidation(t *testing.T) {
 
 func TestServerMock_HeaderValidation(t *testing.T) {
 	tc := &TestCapture{}
-	expectedErrors := []string{"GoAPIpretender: invalid X-Test-Header header: expected 'expected-value', got 'wrong-value'"}
+	expectedErrors := []string{"invalid X-Test-Header header: expected 'expected-value', got 'wrong-value'"}
 	mock := NewConfiguredMockServer(ServerMockConfig{
 		Headers: map[string]string{"X-Test-Header": "expected-value"},
 		T:       tc,
@@ -101,7 +101,7 @@ func TestServerMock_HeaderValidation(t *testing.T) {
 
 func TestServerMock_QueryParameterValidation(t *testing.T) {
 	tc := &TestCapture{}
-	expectedErrors := []string{"GoAPIpretender: invalid param1 parameter: expected 'value1', got 'wrong-value'"}
+	expectedErrors := []string{"invalid param1 parameter: expected 'value1', got 'wrong-value'"}
 	mock := NewConfiguredMockServer(ServerMockConfig{
 		Parameters: map[string]string{"param1": "value1"},
 		T:          tc,
@@ -117,7 +117,7 @@ func TestServerMock_QueryParameterValidation(t *testing.T) {
 
 func TestServerMock_PayloadValidation(t *testing.T) {
 	tc := &TestCapture{}
-	expectedErrors := []string{"GoAPIpretender: Mismatched JSON payload, got: '{\"key\":\"wrong-value\"}', expected: '{\"key\":\"value\"}'"}
+	expectedErrors := []string{"Mismatched JSON payload, got: '{\"key\":\"wrong-value\"}', expected: '{\"key\":\"value\"}'"}
 	expectedPayload := []byte(`{"key":"value"}`)
 	mock := NewDefaultMockServer().SetPayload(expectedPayload).SetMethod("POST").SetT(tc)
 	defer mock.Stop()
@@ -131,7 +131,7 @@ func TestServerMock_PayloadValidation(t *testing.T) {
 }
 func TestServerMock_MissmatchingPayloadValidation(t *testing.T) {
 	tc := &TestCapture{}
-	expectedErrors := []string{"GoAPIpretender: Unexpected payload received, got: '{\"key\":\"wrong-value\"}', expected: '{\"key\":\"value\"}'"}
+	expectedErrors := []string{"Unexpected payload received, got: '{\"key\":\"wrong-value\"}', expected: '{\"key\":\"value\"}'"}
 	expectedPayload := []byte(`{"key":"value"}`)
 	mock := NewDefaultMockServer().SetPayload(expectedPayload).SetMethod("POST").SetT(tc)
 	defer mock.Stop()
@@ -144,7 +144,7 @@ func TestServerMock_MissmatchingPayloadValidation(t *testing.T) {
 }
 func TestServerMock_InvalidJSONexpected(t *testing.T) {
 	tc := &TestCapture{}
-	expectedErrors := []string{"GoAPIpretender: Invalid expected JSON: '{\"key:\"value}'"}
+	expectedErrors := []string{"Invalid expected JSON: '{\"key:\"value}'"}
 	expectedPayload := []byte(`{"key:"value}`)
 	mock := NewDefaultMockServer().SetPayload(expectedPayload).SetMethod("POST").SetT(tc)
 	defer mock.Stop()
@@ -158,7 +158,7 @@ func TestServerMock_InvalidJSONexpected(t *testing.T) {
 }
 func TestServerMock_InvalidJSONpayload(t *testing.T) {
 	tc := &TestCapture{}
-	expectedErrors := []string{"GoAPIpretender: Invalid received JSON: '{\"key:\"wrong-value}'"}
+	expectedErrors := []string{"Invalid received JSON: '{\"key:\"wrong-value}'"}
 	expectedPayload := []byte(`{"key":"value"}`)
 	mock := NewDefaultMockServer().SetPayload(expectedPayload).SetMethod("POST").SetT(tc)
 	defer mock.Stop()
@@ -173,7 +173,7 @@ func TestServerMock_InvalidJSONpayload(t *testing.T) {
 
 func TestServerMock_NotExpectedPayload(t *testing.T) {
 	tc := &TestCapture{}
-	expectedErrors := []string{"GoAPIpretender: Unexpected payload received, got: 'mock-payload', but none was expected"}
+	expectedErrors := []string{"Unexpected payload received, got: 'mock-payload', but none was expected"}
 
 	mock := NewConfiguredMockServer(ServerMockConfig{}).SetT(tc)
 	defer mock.Stop()
@@ -186,7 +186,7 @@ func TestServerMock_NotExpectedPayload(t *testing.T) {
 }
 func TestServerMock_MissingPayload(t *testing.T) {
 	tc := &TestCapture{}
-	expectedErrors := []string{"GoAPIpretender: Expected a request payload, but none was received"}
+	expectedErrors := []string{"Expected a request payload, but none was received"}
 
 	mock := NewConfiguredMockServer(ServerMockConfig{}).SetT(tc).SetPayload([]byte("expected-payload"))
 	defer mock.Stop()
@@ -197,6 +197,30 @@ func TestServerMock_MissingPayload(t *testing.T) {
 
 	tc.checkErrors(expectedErrors, t)
 }
+
+func TestServerMock_CustomMock(t *testing.T) {
+	expectedBody := "mock-message"
+	expectedStatus := 201
+
+	mock := NewConfiguredMockServer(ServerMockConfig{}).SetCustomHandler(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(expectedStatus)
+		fmt.Fprintf(w, expectedBody)
+	})
+	defer mock.Stop()
+	url := mock.Start()
+
+	req, _ := http.NewRequest("POST", url, nil)
+	response, _ := http.DefaultClient.Do(req)
+	responseBody := make([]byte, len(expectedBody))
+	response.Body.Read(responseBody)
+	if expectedBody != string(responseBody) {
+		t.Errorf("received unnexpected response, got: '%s', expected: '%s'", string(responseBody), expectedBody)
+	}
+	if response.StatusCode != expectedStatus {
+		t.Errorf("received unnexpected status, got:'%d' expected:'%d", response.StatusCode, expectedStatus)
+	}
+}
+
 func TestServerMock_LogErrors(t *testing.T) {
 	mock := NewConfiguredMockServer(ServerMockConfig{}).SetPayload([]byte("expected-payload")).SetMethod("GET")
 	defer mock.Stop()
@@ -204,7 +228,6 @@ func TestServerMock_LogErrors(t *testing.T) {
 
 	req, _ := http.NewRequest("POST", url, nil)
 	http.DefaultClient.Do(req)
-
 }
 
 func TestServerMock_ResponseStatusAndBody(t *testing.T) {

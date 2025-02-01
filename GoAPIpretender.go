@@ -32,6 +32,7 @@ type ServerMockConfig struct {
 	ResponseStatus int
 	ResponseHeader map[string]string
 	ResponseBody   []byte
+	CustonHandler  http.HandlerFunc
 	T              T
 }
 
@@ -136,7 +137,7 @@ func (s *ServerMock) newHandler() http.HandlerFunc {
 		if len(errs) > 0 {
 			err := joinErrors(errs)
 			if s.config.T != nil {
-				s.config.T.Errorf("GoAPIpretender: %v", err)
+				s.config.T.Error(err)
 			} else {
 				log.Printf("GoAPIpretender: %v", err)
 			}
@@ -167,7 +168,11 @@ func (s *ServerMock) Start() string {
 	if s.server != nil {
 		return s.server.URL
 	}
-	s.server = httptest.NewServer(s.newHandler())
+	if s.config.CustonHandler != nil {
+		s.server = httptest.NewServer(s.config.CustonHandler)
+	} else {
+		s.server = httptest.NewServer(s.newHandler())
+	}
 	return s.server.URL
 }
 
@@ -239,12 +244,19 @@ func (s *ServerMock) SetResponseStatus(status int) *ServerMock {
 	s.config.ResponseStatus = status
 	return s
 }
+
 func (s *ServerMock) SetResponseHeader(headers map[string]string) *ServerMock {
 	s.config.ResponseHeader = headers
 	return s
 }
+
 func (s *ServerMock) SetResponseBody(body []byte) *ServerMock {
 	s.config.ResponseBody = body
+	return s
+}
+
+func (s *ServerMock) SetCustomHandler(handler http.HandlerFunc) *ServerMock {
+	s.config.CustonHandler = handler
 	return s
 }
 

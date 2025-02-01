@@ -149,6 +149,7 @@ Always call `Stop()` after the test to **clean up resources**.
 | **Method** | **Description** | **Example** |
 |------------|---------------|-------------|
 | `NewDefaultMockServer()`| Creates a mock server with default settings  | `mock := GoAPIpretender.NewDefaultMockServer()`
+| `SetCustomHandler(handler http.HandlerFunc)` | Sets a custom handler func, if provided all other validations and return values will be ignored | `mock.SetCustomHandler(func(w http.ResponseWriter, r *http.Request) {})` |
 | `SetMethod(method string)` | Sets expected HTTP method | `mock.SetMethod("POST")` |
 | `SetPath(path string)` | Sets expected request path | `mock.SetPath("/api/test")` |
 | `SetT(t *testing.T)` | Attaches a test instance for failure logging | `mock.SetT(t)` |
