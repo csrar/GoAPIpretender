@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	parameter = "parameter"
-	header    = "header"
+	parameter       = "parameter"
+	header          = "header"
+	contentType     = "Content-Type"
+	applicationJSON = "application/json"
 )
 
 type T interface {
@@ -26,12 +28,12 @@ type ServerMockConfig struct {
 	Path           string
 	Method         string
 	ContentType    string
-	Payload        []byte
+	Payload        string
 	Parameters     map[string]string
 	Headers        map[string]string
 	ResponseStatus int
 	ResponseHeader map[string]string
-	ResponseBody   []byte
+	ResponseBody   string
 	CustonHandler  http.HandlerFunc
 	T              T
 }
@@ -77,7 +79,7 @@ func (s *ServerMock) checkPayload(r *http.Request) error {
 	if err != nil {
 		return fmt.Errorf("Failed to read request body: %v", err)
 	}
-	if s.config.Payload == nil && len(payload) > 0 {
+	if s.config.Payload == "" && len(payload) > 0 {
 		return fmt.Errorf("Unexpected payload received, got: '%s', but none was expected", string(payload))
 	}
 	if len(s.config.Payload) > 0 && len(payload) == 0 {
@@ -96,7 +98,7 @@ func (s *ServerMock) comparePayloads(r *http.Request, payload []byte) error {
 		return nil
 	}
 
-	if err := json.Unmarshal(s.config.Payload, &expectedPayload); err != nil {
+	if err := json.Unmarshal([]byte(s.config.Payload), &expectedPayload); err != nil {
 		return fmt.Errorf("Invalid expected JSON: '%s'", string(s.config.Payload))
 	}
 
@@ -111,8 +113,8 @@ func (s *ServerMock) comparePayloads(r *http.Request, payload []byte) error {
 }
 
 func (s *ServerMock) isJSONrequest(r *http.Request) bool {
-	contentType := r.Header.Get("Content-Type")
-	return strings.HasPrefix(contentType, "application/json")
+	contentType := r.Header.Get(contentType)
+	return strings.HasPrefix(contentType, applicationJSON)
 
 }
 
@@ -159,8 +161,8 @@ func (s *ServerMock) returnResponse(w http.ResponseWriter) {
 	if status >= http.StatusContinue && status <= http.StatusNetworkAuthenticationRequired {
 		w.WriteHeader(status)
 	}
-	if s.config.ResponseBody != nil {
-		_, _ = w.Write(s.config.ResponseBody)
+	if s.config.ResponseBody != "" {
+		_, _ = w.Write([]byte(s.config.ResponseBody))
 	}
 }
 
@@ -235,8 +237,13 @@ func (s *ServerMock) SetT(t T) *ServerMock {
 	return s
 }
 
-func (s *ServerMock) SetPayload(payload []byte) *ServerMock {
+func (s *ServerMock) SetPayload(payload string) *ServerMock {
 	s.config.Payload = payload
+	return s
+}
+
+func (s *ServerMock) SetHeaders(headers map[string]string) *ServerMock {
+	s.config.Headers = headers
 	return s
 }
 
@@ -250,9 +257,22 @@ func (s *ServerMock) SetResponseHeader(headers map[string]string) *ServerMock {
 	return s
 }
 
-func (s *ServerMock) SetResponseBody(body []byte) *ServerMock {
+func (s *ServerMock) SetResponseBody(body string) *ServerMock {
 	s.config.ResponseBody = body
 	return s
+}
+
+func (s *ServerMock) SetJSONResponse(body string) (*ServerMock, error) {
+	var jsonBody interface{}
+	if err := json.Unmarshal([]byte(body), &jsonBody); err != nil {
+		return s, fmt.Errorf("Invalid json provided: '%s'", string(body))
+	}
+	s.config.ResponseBody = body
+	if s.config.ResponseHeader == nil {
+		s.config.ResponseHeader = make(map[string]string)
+	}
+	s.config.ResponseHeader[contentType] = applicationJSON
+	return s, nil
 }
 
 func (s *ServerMock) SetCustomHandler(handler http.HandlerFunc) *ServerMock {

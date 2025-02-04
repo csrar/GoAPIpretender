@@ -3,6 +3,7 @@ package GoAPIpretender
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -86,9 +87,9 @@ func TestServerMock_HeaderValidation(t *testing.T) {
 	tc := &TestCapture{}
 	expectedErrors := []string{"invalid X-Test-Header header: expected 'expected-value', got 'wrong-value'"}
 	mock := NewConfiguredMockServer(ServerMockConfig{
-		Headers: map[string]string{"X-Test-Header": "expected-value"},
-		T:       tc,
+		T: tc,
 	})
+	mock.SetHeaders(map[string]string{"X-Test-Header": "expected-value"})
 	defer mock.Stop()
 	url := mock.Start()
 
@@ -118,7 +119,7 @@ func TestServerMock_QueryParameterValidation(t *testing.T) {
 func TestServerMock_PayloadValidation(t *testing.T) {
 	tc := &TestCapture{}
 	expectedErrors := []string{"Mismatched JSON payload, got: '{\"key\":\"wrong-value\"}', expected: '{\"key\":\"value\"}'"}
-	expectedPayload := []byte(`{"key":"value"}`)
+	expectedPayload := `{"key":"value"}`
 	mock := NewDefaultMockServer().SetPayload(expectedPayload).SetMethod("POST").SetT(tc)
 	defer mock.Stop()
 	url := mock.Start()
@@ -132,7 +133,7 @@ func TestServerMock_PayloadValidation(t *testing.T) {
 func TestServerMock_MissmatchingPayloadValidation(t *testing.T) {
 	tc := &TestCapture{}
 	expectedErrors := []string{"Unexpected payload received, got: '{\"key\":\"wrong-value\"}', expected: '{\"key\":\"value\"}'"}
-	expectedPayload := []byte(`{"key":"value"}`)
+	expectedPayload := `{"key":"value"}`
 	mock := NewDefaultMockServer().SetPayload(expectedPayload).SetMethod("POST").SetT(tc)
 	defer mock.Stop()
 	url := mock.Start()
@@ -145,7 +146,7 @@ func TestServerMock_MissmatchingPayloadValidation(t *testing.T) {
 func TestServerMock_InvalidJSONexpected(t *testing.T) {
 	tc := &TestCapture{}
 	expectedErrors := []string{"Invalid expected JSON: '{\"key:\"value}'"}
-	expectedPayload := []byte(`{"key:"value}`)
+	expectedPayload := `{"key:"value}`
 	mock := NewDefaultMockServer().SetPayload(expectedPayload).SetMethod("POST").SetT(tc)
 	defer mock.Stop()
 	url := mock.Start()
@@ -159,7 +160,7 @@ func TestServerMock_InvalidJSONexpected(t *testing.T) {
 func TestServerMock_InvalidJSONpayload(t *testing.T) {
 	tc := &TestCapture{}
 	expectedErrors := []string{"Invalid received JSON: '{\"key:\"wrong-value}'"}
-	expectedPayload := []byte(`{"key":"value"}`)
+	expectedPayload := `{"key":"value"}`
 	mock := NewDefaultMockServer().SetPayload(expectedPayload).SetMethod("POST").SetT(tc)
 	defer mock.Stop()
 	url := mock.Start()
@@ -188,7 +189,7 @@ func TestServerMock_MissingPayload(t *testing.T) {
 	tc := &TestCapture{}
 	expectedErrors := []string{"Expected a request payload, but none was received"}
 
-	mock := NewConfiguredMockServer(ServerMockConfig{}).SetT(tc).SetPayload([]byte("expected-payload"))
+	mock := NewConfiguredMockServer(ServerMockConfig{}).SetT(tc).SetPayload("expected-payload")
 	defer mock.Stop()
 	url := mock.Start()
 
@@ -222,7 +223,7 @@ func TestServerMock_CustomMock(t *testing.T) {
 }
 
 func TestServerMock_LogErrors(t *testing.T) {
-	mock := NewConfiguredMockServer(ServerMockConfig{}).SetPayload([]byte("expected-payload")).SetMethod("GET")
+	mock := NewConfiguredMockServer(ServerMockConfig{}).SetPayload("expected-payload").SetMethod("GET")
 	defer mock.Stop()
 	url := mock.Start()
 
@@ -231,7 +232,7 @@ func TestServerMock_LogErrors(t *testing.T) {
 }
 
 func TestServerMock_ResponseStatusAndBody(t *testing.T) {
-	expectedBody := []byte(`{"object":{"key":"value"},"array":[1,"text",false,null],"string":"hello","number":42,"boolean":true,"null":null}`)
+	expectedBody := `{"object":{"key":"value"},"array":[1,"text",false,null],"string":"hello","number":42,"boolean":true,"null":null}`
 	expectedHeaders := map[string]string{"Custom-Header": "success"}
 	mock := NewConfiguredMockServer(ServerMockConfig{
 		ResponseStatus: http.StatusCreated,
@@ -265,13 +266,47 @@ func TestServerMock_ResponseStatusAndBody(t *testing.T) {
 	}
 }
 
+func TestServerMock_SetJSONResponse(t *testing.T) {
+	expectedBody := `{"object":{"key":"value"},"array":[1,"text",false,null],"string":"hello","number":42,"boolean":true,"null":null}`
+	expectedHeaders := map[string]string{contentType: applicationJSON}
+	mock := NewConfiguredMockServer(ServerMockConfig{})
+	mock.SetJSONResponse(expectedBody)
+	defer mock.Stop()
+	url := mock.Start()
+
+	req, _ := http.NewRequest("GET", url, nil)
+	resp, _ := http.DefaultClient.Do(req)
+
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if string(body) != string(expectedBody) {
+		t.Errorf("Expected response body %s, got %s", expectedBody, body)
+	}
+	for key, value := range expectedHeaders {
+		headerValue := resp.Header.Get(key)
+		if value != headerValue {
+			t.Errorf("Header '%s' returned an unexpected value, got: '%s', expected: '%s'", key, headerValue, value)
+		}
+	}
+}
+
+func TestServerMock_SetInvalidJSONresponse(t *testing.T) {
+	expectedBody := "{"
+	expectedError := "Invalid json provided: '{'"
+	mock := NewConfiguredMockServer(ServerMockConfig{})
+	_, err := mock.SetJSONResponse(expectedBody)
+	if err.Error() != expectedError {
+		t.Errorf("expected error: '%s' got:'%s'", expectedError, err.Error())
+	}
+}
+
 func TestServerMock_BuilderMethods(t *testing.T) {
 	mock := NewDefaultMockServer().
 		SetMethod("POST").
 		SetPath("/test").
 		SetResponseStatus(http.StatusAccepted).
 		SetResponseHeader(map[string]string{"Content-Type": "application/json"}).
-		SetResponseBody([]byte(`{"status":"ok"}`))
+		SetResponseBody(`{"status":"ok"}`)
 
 	if mock.config.Method != "POST" {
 		t.Errorf("SetMethod failed, expected POST, got %s", mock.config.Method)

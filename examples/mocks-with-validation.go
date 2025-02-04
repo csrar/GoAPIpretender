@@ -14,7 +14,7 @@ func TestBasicMockServer(t *testing.T) {
 		Path:           "/api/data",
 		Method:         "GET",
 		ResponseStatus: http.StatusOK,
-		ResponseBody:   []byte(`{"message": "success"}`),
+		ResponseBody:   `{"message": "success"}`,
 		T:              t, // Ensures validation errors fail the test
 	})
 	defer mock.Stop()
@@ -35,7 +35,7 @@ func TestMockServerWithHeaders(t *testing.T) {
 		Method:         "POST",
 		Headers:        map[string]string{"Authorization": "Bearer token123"},
 		ResponseStatus: http.StatusOK,
-		ResponseBody:   []byte(`{"status": "authorized"}`),
+		ResponseBody:   `{"status": "authorized"}`,
 		T:              t,
 	})
 	defer mock.Stop()
@@ -57,7 +57,7 @@ func TestMockServerWithQueryParams(t *testing.T) {
 		Method:         "GET",
 		Parameters:     map[string]string{"id": "42"},
 		ResponseStatus: http.StatusOK,
-		ResponseBody:   []byte(`{"result": "found"}`),
+		ResponseBody:   `{"result": "found"}`,
 		T:              t,
 	})
 	defer mock.Stop()
