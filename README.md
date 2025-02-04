@@ -142,10 +142,35 @@ mock.Stop()
 
 Always call `Stop()` after the test to **clean up resources**.
 
+
+
+## `ServerMockConfig` is Mutable  
+`ServerMockConfig` is a **mutable object**, meaning that if you modify its values during test execution, it may affect other tests running in parallel.  
+
+### **What This Means**  
+- If multiple tests share the **same instance** of `ServerMockConfig` and modify values, it could lead to **false test validations**.  
+- This is especially important in **parallel test execution** (`t.Parallel()`).  
+
+### **Best Practice: Always Use a New Instance Per Test**  
+To **avoid conflicts**, **always create a new instance** of `ServerMockConfig` for each test instead of reusing a shared instance.
+
+```go
+func TestMockServer(t *testing.T) {
+    config := GoAPIpretender.ServerMockConfig{
+        Path: "/test",
+        Method: "GET",
+        ResponseStatus: http.StatusOK,
+    }
+
+    mock := GoAPIpretender.NewConfiguredMockServer(config)
+    defer mock.Stop()
+
+    url := mock.Start()
+    // Your test logic here...
+}
+```
 ---
-
 ##  Builder Methods
-
 | **Method** | **Description** | **Example** |
 |------------|---------------|-------------|
 | `NewDefaultMockServer()`| Creates a mock server with default settings  | `mock := GoAPIpretender.NewDefaultMockServer()`
@@ -154,10 +179,10 @@ Always call `Stop()` after the test to **clean up resources**.
 | `SetPath(path string)` | Sets expected request path | `mock.SetPath("/api/test")` |
 | `SetT(t *testing.T)` | Attaches a test instance for failure logging | `mock.SetT(t)` |
 | `SetPayload(payload []byte)` | Sets expected request body | `mock.SetPayload([]byte(`{"key":"value"}`))` |
+| `SetHeaders(headers map[string]string)` | Set expected headers. It overrides existing headers | `mock.SetHeaders(map[string]string{"Content-Type": "application/json"})` |
 | `SetResponseStatus(status int)` | Sets response HTTP status code | `mock.SetResponseStatus(201)` |
-| `SetResponseHeader(headers map[string]string)` | Sets response headers | `mock.SetResponseHeader(map[string]string{"Content-Type": "application/json"})` |
+| `SetResponseHeader(headers map[string]string)` | Sets response headers. It overrides existing headers | `mock.SetResponseHeader(map[string]string{"Content-Type": "application/json"})` |
 | `SetResponseBody(body []byte)` | Sets response body | `mock.SetResponseBody([]byte(`{"message":"ok"}`))` |
-
 ---
 
 ## Why Use GoAPIpretender?

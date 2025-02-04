@@ -10,7 +10,7 @@ import (
 func TestMockServerWithoutValidation(t *testing.T) {
 	mock := GoAPIpretender.NewDefaultMockServer().
 		SetResponseStatus(http.StatusOK).
-		SetResponseBody([]byte(`{"message": "no validation"}`))
+		SetResponseBody(`{"message": "no validation"}`)
 
 	defer mock.Stop()
 
@@ -26,7 +26,7 @@ func TestMockServerWithoutValidation(t *testing.T) {
 func TestMockServerWithErrorResponse(t *testing.T) {
 	mock := GoAPIpretender.NewConfiguredMockServer(GoAPIpretender.ServerMockConfig{
 		ResponseStatus: http.StatusInternalServerError,
-		ResponseBody:   []byte(`{"error": "server failure"}`),
+		ResponseBody:   `{"error": "server failure"}`,
 	})
 	defer mock.Stop()
 
